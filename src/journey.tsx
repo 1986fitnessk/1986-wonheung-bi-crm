@@ -1,0 +1,47 @@
+import React,{useState} from 'react';
+import type {CrmState,LeadStatus} from './types';
+import {crmStore,makeCode,makeId} from './store';
+import {options} from './options';
+
+type Stage='lead'|'consultation'|'visit'|'sale';
+const today=()=>new Date().toISOString().slice(0,10);
+const stages:{id:Stage;label:string;hint:string}[]=[
+ {id:'lead',label:'문의만 접수',hint:'리드 저장'},
+ {id:'consultation',label:'상담까지 완료',hint:'상담 맥락 포함'},
+ {id:'visit',label:'방문까지 완료',hint:'방문 결과 포함'},
+ {id:'sale',label:'등록 완료',hint:'회원·판매 생성'},
+];
+const rank:Record<Stage,number>={lead:0,consultation:1,visit:2,sale:3};
+const Field=({label,required,children}:{label:string;required?:boolean;children:React.ReactNode})=><label><span>{label}{required&&<b>필수</b>}</span>{children}</label>;
+const Select=({name,items,required=true}:{name:string;items:readonly string[];required?:boolean})=><select name={name} required={required}><option value="">선택</option>{items.map(x=><option key={x}>{x}</option>)}</select>;
+
+export function JourneyEntry({data,done}:{data:CrmState;done:()=>void}){
+ const [stage,setStage]=useState<Stage>('lead'); const [area,setArea]=useState('');
+ const active=(id:Stage)=>rank[stage]>=rank[id];
+ const submit=(fd:FormData)=>{
+  const now=new Date().toISOString(),leadId=makeId();
+  const status:LeadStatus=stage==='sale'?'등록':stage==='visit'?'방문예정':stage==='consultation'?'상담완료':'신규';
+  const lead={id:leadId,leadCode:makeCode('L',data.leads.length),firstContactDate:String(fd.get('leadDate')),name:String(fd.get('name')),gender:String(fd.get('gender')),ageGroup:String(fd.get('age')),source:String(fd.get('source')),inquiryMethod:String(fd.get('method')),goal:String(fd.get('goal')),experience:String(fd.get('experience')),status,areaId:String(fd.get('area')||'')||undefined,complexId:String(fd.get('complex')||'')||undefined,interestedProductId:String(fd.get('interestProduct')||'')||undefined,note:String(fd.get('leadNote')||''),createdAt:now};
+  crmStore.add('leads',lead);
+  if(active('consultation')) crmStore.add('consultations',{id:makeId(),consultationCode:makeCode('C',data.consultations.length),leadId,date:String(fd.get('consultationDate')||fd.get('leadDate')),consultant:String(fd.get('consultant')),priceResistance:String(fd.get('priceResistance')),competitorStatus:String(fd.get('competitorStatus')),competitor:String(fd.get('competitor')||''),result:String(fd.get('consultationResult')),followUpNeeded:fd.get('followUp')==='예',followUpDate:String(fd.get('followUpDate')||''),note:String(fd.get('consultationNote')||''),createdAt:now});
+  if(active('visit')) crmStore.add('visits',{id:makeId(),visitCode:makeCode('V',data.visits.length),leadId,scheduledDate:String(fd.get('scheduledDate')||''),actualDate:String(fd.get('actualDate')||''),type:String(fd.get('visitType')),status:String(fd.get('visitStatus')),staff:String(fd.get('visitStaff')),tour:fd.get('tour')==='예',ptConsultation:fd.get('ptConsultation')==='예',trial:fd.get('trial')==='예',createdAt:now});
+  if(active('sale')){
+   const product=data.products.find(x=>x.id===String(fd.get('saleProduct'))); const memberId=makeId();
+   crmStore.add('members',{id:memberId,memberCode:makeCode('M',data.members.length),leadId,name:lead.name,gender:lead.gender,ageGroup:lead.ageGroup,joinedAt:String(fd.get('paymentDate')),source:lead.source,status:'이용중',areaId:lead.areaId,complexId:lead.complexId,createdAt:now});
+   crmStore.add('sales',{id:makeId(),saleCode:makeCode('S',data.sales.length),leadId,memberId,paymentDate:String(fd.get('paymentDate')),product:product?.name||'상품 미등록',productType:product?.category||'기타',listPrice:product?.listPrice||Number(fd.get('amount')),amount:Number(fd.get('amount')),saleType:'신규',staff:String(fd.get('salesStaff')),createdAt:now});
+  }
+  done();
+ };
+ return <section className="journeyCard"><div className="journeyTop"><div><span>CUSTOMER JOURNEY</span><h2>신규 고객 한 번에 입력</h2><p>현재 진행된 단계까지만 선택하면 관련 DB가 자동으로 나뉘어 저장됩니다.</p></div></div><div className="stagePicker">{stages.map((x,i)=><button type="button" className={stage===x.id?'active':''} onClick={()=>setStage(x.id)}><i>{i+1}</i><b>{x.label}</b><small>{x.hint}</small></button>)}</div><form onSubmit={e=>{e.preventDefault();submit(new FormData(e.currentTarget))}}>
+ <JourneySection number="01" title="최초 문의" open><Field label="최초 유입일" required><input type="date" name="leadDate" defaultValue={today()} required/></Field><Field label="이름" required><input name="name" required placeholder="실명 입력"/></Field><Field label="성별" required><Select name="gender" items={options.genders}/></Field><Field label="연령대" required><Select name="age" items={options.ageGroups}/></Field><Field label="유입경로" required><Select name="source" items={options.sources}/></Field><Field label="문의방식" required><Select name="method" items={options.inquiryMethods}/></Field><Field label="운동목적" required><Select name="goal" items={options.goals}/></Field><Field label="운동경험" required><Select name="experience" items={options.experience}/></Field><Field label="거주 지역"><select name="area" value={area} onChange={e=>setArea(e.target.value)}><option value="">미확인</option>{data.areas.map(x=><option key={x.id} value={x.id}>{x.name} · {x.distanceBand}</option>)}</select></Field><Field label="아파트 단지"><select name="complex"><option value="">해당 없음 / 미확인</option>{data.apartments.filter(x=>!area||x.areaId===area).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></Field><Field label="관심 상품"><select name="interestProduct"><option value="">미확인</option>{data.products.filter(x=>x.status!=='판매종료').map(x=><option key={x.id} value={x.id}>{x.name} · {x.listPrice.toLocaleString()}원</option>)}</select></Field><Field label="문의 메모"><textarea name="leadNote"/></Field></JourneySection>
+ {active('consultation')&&<JourneySection number="02" title="상담"><Field label="상담일" required><input type="date" name="consultationDate" defaultValue={today()} required/></Field><Field label="상담 담당자" required><input name="consultant" required/></Field><Field label="가격 저항" required><Select name="priceResistance" items={options.priceResistance}/></Field><Field label="비교센터 여부" required><Select name="competitorStatus" items={['없음','있음','미확인']}/></Field><Field label="비교센터"><input name="competitor"/></Field><Field label="상담 결과" required><Select name="consultationResult" items={options.consultationResults}/></Field><Field label="후속상담 필요" required><Select name="followUp" items={['예','아니오']}/></Field><Field label="후속상담 예정일"><input type="date" name="followUpDate"/></Field><Field label="상담 메모"><textarea name="consultationNote"/></Field></JourneySection>}
+ {active('visit')&&<JourneySection number="03" title="방문"><Field label="방문예정일"><input type="date" name="scheduledDate"/></Field><Field label="실제방문일" required><input type="date" name="actualDate" defaultValue={today()} required/></Field><Field label="방문유형" required><Select name="visitType" items={options.visitTypes}/></Field><Field label="방문상태" required><Select name="visitStatus" items={options.visitStatuses}/></Field><Field label="응대 담당자" required><input name="visitStaff" required/></Field><Field label="센터투어" required><Select name="tour" items={['예','아니오']}/></Field><Field label="PT 상담" required><Select name="ptConsultation" items={['예','아니오']}/></Field><Field label="체험" required><Select name="trial" items={['예','아니오']}/></Field></JourneySection>}
+ {active('sale')&&<JourneySection number="04" title="등록"><Field label="결제일" required><input type="date" name="paymentDate" defaultValue={today()} required/></Field><Field label="등록 상품" required><select name="saleProduct" required><option value="">상품 선택</option>{data.products.filter(x=>x.status==='판매중').map(x=><option key={x.id} value={x.id}>{x.name} · {x.listPrice.toLocaleString()}원</option>)}</select></Field><Field label="실제결제금액" required><input type="number" name="amount" min="0" required/></Field><Field label="판매 담당자" required><input name="salesStaff" required/></Field></JourneySection>}
+ <div className="journeyActions"><div><b>{stages.find(x=>x.id===stage)?.label}</b><span> 상태로 저장됩니다.</span></div><button type="submit">고객 Journey 저장</button></div></form></section>
+}
+function JourneySection({number,title,children}:{number:string;title:string;children:React.ReactNode;open?:boolean}){return <fieldset className="journeySection"><legend><i>{number}</i>{title}</legend><div className="formGrid">{children}</div></fieldset>}
+
+export function Pipeline({data,openNew}:{data:CrmState;openNew:()=>void}){
+ const stage=(leadId:string)=>data.members.some(x=>x.leadId===leadId)?'등록 완료':data.visits.some(x=>x.leadId===leadId)?'방문 진행':data.consultations.some(x=>x.leadId===leadId)?'상담 진행':'신규 문의';
+ return <section className="panel"><div className="panelTitle"><div><h2>진행 중 고객</h2><p>한 고객의 현재 Journey 단계를 확인합니다.</p></div><button className="panelAction" onClick={openNew}>+ 신규 고객 입력</button></div>{data.leads.length?<table><thead><tr><th>최초 유입일</th><th>이름</th><th>유입경로</th><th>상권</th><th>관심상품</th><th>현재 단계</th></tr></thead><tbody>{data.leads.map(x=><tr key={x.id}><td>{x.firstContactDate}</td><td><b>{x.name}</b></td><td>{x.source}</td><td>{data.apartments.find(a=>a.id===x.complexId)?.name||data.areas.find(a=>a.id===x.areaId)?.name||'미확인'}</td><td>{data.products.find(p=>p.id===x.interestedProductId)?.name||'미확인'}</td><td><i>{stage(x.id)}</i></td></tr>)}</tbody></table>:<div className="empty"><strong>진행 중인 고객이 없습니다.</strong><p>신규 고객을 입력하면 Journey 단계가 여기에 표시됩니다.</p></div>}</section>
+}
