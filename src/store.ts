@@ -1,6 +1,6 @@
 import type { CrmState } from './types';
 type Listener=()=>void;
-let state:CrmState={leads:[],consultations:[],visits:[],sales:[],members:[]};
+let state:CrmState={leads:[],consultations:[],visits:[],sales:[],members:[],products:[],areas:[],apartments:[],competitors:[],pois:[]};
 const listeners=new Set<Listener>();
 export const crmStore={
  get:()=>state,

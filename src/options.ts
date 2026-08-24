@@ -9,4 +9,8 @@ export const options = {
  consultationResults:['즉시등록','추후등록예정','보류','미등록','후속상담','연락두절'],
  visitTypes:['회원권 상담','PT 상담','시설투어','체험','재방문','기타'], visitStatuses:['방문완료','노쇼','취소','일정변경'],
  productTypes:['회원권','PT','회원권+PT 패키지','기타'], saleTypes:['신규','재등록','추가구매','업셀','기타']
+ ,distanceBands:['0-500m','500m-1km','1-2km','2-3km','3km+'], marketGrades:['Core','Primary','Secondary','Expansion'],
+ areaTypes:['행정동','생활권','상권','기타'], confidenceGrades:['A','B','C','D'],
+ poiCategories:['Apartment','Officetel','Company','Office','Hospital','School','Government','Mart','Shopping','Subway','Bus','Commercial','Development'],
+ partnershipStatuses:['미접촉','검토중','접촉중','협의중','진행','보류','종료'], marketingStatuses:['미진행','계획','진행중','완료','보류']
 } as const;
