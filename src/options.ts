@@ -8,7 +8,7 @@ export const options = {
  priceResistance:['없음','낮음','보통','높음','매우 높음','미확인'],
  consultationResults:['즉시등록','추후등록예정','보류','미등록','후속상담','연락두절'],
  visitTypes:['회원권 상담','PT 상담','시설투어','체험','재방문','기타'], visitStatuses:['방문완료','노쇼','취소','일정변경'],
- productTypes:['회원권','PT','회원권+PT 패키지','기타'], saleTypes:['신규','재등록','추가구매','업셀','기타']
+ productTypes:['회원권','패키지','PT','회원권+PT','기타'], registrationProducts:['회원권','패키지','회원권+PT'], saleTypes:['신규','재등록','추가구매','업셀','기타']
  ,distanceBands:['0-500m','500m-1km','1-2km','2-3km','3km+'], marketGrades:['Core','Primary','Secondary','Expansion'],
  areaTypes:['행정동','생활권','상권','기타'], confidenceGrades:['A','B','C','D'],
  poiCategories:['Apartment','Officetel','Company','Office','Hospital','School','Government','Mart','Shopping','Subway','Bus','Commercial','Development'],
